@@ -343,19 +343,19 @@ export class UsersController {
     this.assertNotImpersonating(req);
     const orgToDelete = await this._orgService.getOrgToDelete(user.id, id);
 
+    await this._orgService.deleteOwnedOrganization(orgToDelete.id, user.id);
+
     if (process.env.STRIPE_PUBLISHABLE_KEY && orgToDelete.paymentId) {
       try {
         await this._stripeService.cancelAllSubscriptions(orgToDelete.id);
       } catch (err) {
         console.log(err);
         throw new HttpException(
-          'Could not cancel your subscription, please try again or contact support',
+          'Your organization was deleted but we could not cancel your subscription, please contact support',
           400
         );
       }
     }
-
-    await this._orgService.deleteOwnedOrganization(orgToDelete.id, user.id);
 
     const remaining = (await this._orgService.getOrgsByUserId(user.id)).filter(
       (item) => !item.users[0].disabled

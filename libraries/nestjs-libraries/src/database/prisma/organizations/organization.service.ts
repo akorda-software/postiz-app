@@ -133,7 +133,6 @@ export class OrganizationService {
   }
 
   async deleteOwnedOrganization(orgId: string, userId: string) {
-    await this._integrationRepository.deleteIntegrationsForAccount(orgId);
     const deleted =
       await this._organizationRepository.deleteOrganizationIfNotLast(
         orgId,
@@ -146,6 +145,8 @@ export class OrganizationService {
         400
       );
     }
+
+    await this._integrationRepository.deleteIntegrationsForAccount(orgId);
 
     return deleted;
   }
