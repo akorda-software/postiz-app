@@ -24,8 +24,9 @@ const toolNode = new ToolNode(tools);
 
 const model = new ChatOpenAI({
   apiKey: process.env.OPENAI_API_KEY || 'sk-proj-',
-  model: 'gpt-4.1',
+  model: process.env.OPENAI_MODEL || 'gpt-4.1',
   temperature: 0.7,
+  configuration: { baseURL: process.env.OPENAI_BASE_URL },
 });
 
 const dalle = new DallEAPIWrapper({
@@ -66,13 +67,13 @@ const hook = z.object({
   hook: z
     .string()
     .describe(
-      'Hook for the new post, don\'t take it from "the request of the user"'
+      'Hook for the new post, don\'t take it from "the request of the user"',
     ),
 });
 
 const contentZod = (
   isPicture: boolean,
-  format: 'one_short' | 'one_long' | 'thread_short' | 'thread_long'
+  format: 'one_short' | 'one_long' | 'thread_short' | 'thread_long',
 ) => {
   const content = z.object({
     content: z.string().describe('Content for the new post'),
@@ -81,14 +82,14 @@ const contentZod = (
       .nullable()
       .optional()
       .describe(
-        "Website for the new post if exists, If one of the post present a brand, website link must be to the root domain of the brand or don't include it, website url should contain the brand name"
+        "Website for the new post if exists, If one of the post present a brand, website link must be to the root domain of the brand or don't include it, website url should contain the brand name",
       ),
     ...(isPicture
       ? {
           prompt: z
             .string()
             .describe(
-              "Prompt to generate a picture for this post later, make sure it doesn't contain brand names and make it very descriptive in terms of style"
+              "Prompt to generate a picture for this post later, make sure it doesn't contain brand names and make it very descriptive in terms of style",
             ),
         }
       : {}),
@@ -107,7 +108,7 @@ export class AgentGraphService {
   private storage = UploadFactory.createStorage();
   constructor(
     private _postsService: PostsService,
-    private _mediaService: MediaService
+    private _mediaService: MediaService,
   ) {}
   static state = () =>
     new StateGraph<WorkflowChannelsState>({
@@ -140,7 +141,7 @@ export class AgentGraphService {
     You research should be on the most possible recent data.
     You concat the text of the request together with an internet research based on the text.
     {text}
-    `
+    `,
     )
       .pipe(runTools)
       .invoke({
@@ -163,7 +164,7 @@ export class AgentGraphService {
         You are an assistant that gets a text that will be later summarized into a social media post
         and classify it to one of the following categories: {categories}
         text: {text}
-      `
+      `,
     )
       .pipe(structuredOutput)
       .invoke({
@@ -178,7 +179,7 @@ export class AgentGraphService {
 
   async findTopic(state: WorkflowChannelsState) {
     const allTopics = await this._postsService.findAllExistingTopicsOfCategory(
-      state?.category!
+      state?.category!,
     );
     if (allTopics.length === 0) {
       return { topic: null };
@@ -190,7 +191,7 @@ export class AgentGraphService {
         You are an assistant that gets a text that will be later summarized into a social media post
         and classify it to one of the following topics: {topics}
         text: {text}
-      `
+      `,
     )
       .pipe(structuredOutput)
       .invoke({
@@ -206,7 +207,7 @@ export class AgentGraphService {
   async findPopularPosts(state: WorkflowChannelsState) {
     const popularPosts = await this._postsService.findPopularPosts(
       state.category!,
-      state.topic
+      state.topic,
     );
     return { popularPosts };
   }
@@ -239,7 +240,7 @@ export class AgentGraphService {
         {text}
         <!-- END current content -->
        
-      `
+      `,
     )
       .pipe(structuredOutput)
       .invoke({
@@ -255,7 +256,7 @@ export class AgentGraphService {
 
   async generateContent(state: WorkflowChannelsState) {
     const structuredOutput = model.withStructuredOutput(
-      contentZod(!!state.isPicture, state.format)
+      contentZod(!!state.isPicture, state.format),
     );
     const { content: outputContent } = await ChatPromptTemplate.fromTemplate(
       `
@@ -290,7 +291,7 @@ export class AgentGraphService {
         
         current content information:
         {information}
-      `
+      `,
     )
       .pipe(structuredOutput)
       .invoke({
@@ -327,7 +328,7 @@ export class AgentGraphService {
             ...p,
             image,
           };
-        })
+        }),
       );
 
       return {
@@ -347,7 +348,7 @@ export class AgentGraphService {
           const uploadWithId = await this._mediaService.saveFile(
             state.orgId,
             name,
-            upload
+            upload,
           );
 
           return {
@@ -357,7 +358,7 @@ export class AgentGraphService {
         }
 
         return p;
-      })
+      }),
     );
 
     return { content: all };
@@ -401,7 +402,7 @@ export class AgentGraphService {
       .addEdge('generate-content', 'generate-content-fix')
       .addConditionalEdges(
         'generate-content-fix',
-        this.isGeneratePicture.bind(this)
+        this.isGeneratePicture.bind(this),
       )
       .addEdge('generate-picture', 'upload-pictures')
       .addEdge('upload-pictures', 'post-time')
@@ -420,7 +421,7 @@ export class AgentGraphService {
       {
         streamMode: 'values',
         version: 'v2',
-      }
+      },
     );
   }
 }

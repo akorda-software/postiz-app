@@ -1,6 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { Agent } from '@mastra/core/agent';
-import { openai } from '@ai-sdk/openai';
+import { createOpenAI } from '@ai-sdk/openai';
+
+const openai = createOpenAI({
+  apiKey: process.env.OPENAI_API_KEY || 'sk-proj-',
+  baseURL: process.env.OPENAI_BASE_URL,
+});
 import { Memory } from '@mastra/memory';
 import { pStore } from '@gitroom/nestjs-libraries/chat/mastra.store';
 import { array, object, string } from 'zod';
@@ -29,14 +34,14 @@ export class LoadToolsService {
           .map(async (p) => ({
             name: p.name as string,
             tool: await p.run(),
-          }))
+          })),
       )
     ).reduce(
       (all, current) => ({
         ...all,
         [current.name]: current.tool,
       }),
-      {} as Record<string, any>
+      {} as Record<string, any>,
     );
   }
 
@@ -45,7 +50,8 @@ export class LoadToolsService {
     return new Agent({
       id: 'postiz',
       name: 'postiz',
-      description: 'Agent that helps schedule and list social media posts for users',
+      description:
+        'Agent that helps schedule and list social media posts for users',
       instructions: ({ requestContext }) => {
         const ui: string = requestContext.get('ui' as never);
         return `
@@ -89,11 +95,11 @@ export class LoadToolsService {
         [
           'If the user confirm, ask if they would like to get a modal with populated content without scheduling the post yet or if they want to schedule it right away.',
         ],
-        !!ui
+        !!ui,
       )}
 `;
       },
-      model: openai('gpt-5.2'),
+      model: openai(process.env.OPENAI_MODEL || 'gpt-5.2'),
       tools,
       memory: new Memory({
         storage: pStore,

@@ -8,6 +8,12 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || 'sk-proj-',
 });
 
+const openaiChat = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY || 'sk-proj-',
+  baseURL: process.env.OPENAI_BASE_URL,
+});
+const chatModel = process.env.OPENAI_MODEL || 'gpt-4.1';
+
 const PicturePrompt = z.object({
   prompt: z.string(),
 });
@@ -35,8 +41,8 @@ export class OpenaiService {
   async generatePromptForPicture(prompt: string) {
     return (
       (
-        await openai.chat.completions.parse({
-          model: 'gpt-4.1',
+        await openaiChat.chat.completions.parse({
+          model: chatModel,
           messages: [
             {
               role: 'system',
@@ -56,8 +62,8 @@ export class OpenaiService {
   async generateVoiceFromText(prompt: string) {
     return (
       (
-        await openai.chat.completions.parse({
-          model: 'gpt-4.1',
+        await openaiChat.chat.completions.parse({
+          model: chatModel,
           messages: [
             {
               role: 'system',
@@ -77,7 +83,7 @@ export class OpenaiService {
   async generatePosts(content: string) {
     const posts = (
       await Promise.all([
-        openai.chat.completions.create({
+        openaiChat.chat.completions.create({
           messages: [
             {
               role: 'assistant',
@@ -91,9 +97,9 @@ export class OpenaiService {
           ],
           n: 5,
           temperature: 1,
-          model: 'gpt-4.1',
+          model: chatModel,
         }),
-        openai.chat.completions.create({
+        openaiChat.chat.completions.create({
           messages: [
             {
               role: 'assistant',
@@ -107,7 +113,7 @@ export class OpenaiService {
           ],
           n: 5,
           temperature: 1,
-          model: 'gpt-4.1',
+          model: chatModel,
         }),
       ])
     ).flatMap((p) => p.choices);
@@ -124,16 +130,16 @@ export class OpenaiService {
                 ?.slice(start + 1, end)
                 .replace(/\n/g, ' ')
                 .replace(/ {2,}/g, ' ') +
-              ']'
+              ']',
           );
         } catch (e) {
           return [];
         }
-      })
+      }),
     );
   }
   async extractWebsiteText(content: string) {
-    const websiteContent = await openai.chat.completions.create({
+    const websiteContent = await openaiChat.chat.completions.create({
       messages: [
         {
           role: 'assistant',
@@ -145,7 +151,7 @@ export class OpenaiService {
           content,
         },
       ],
-      model: 'gpt-4.1',
+      model: chatModel,
     });
 
     const { content: articleContent } = websiteContent.choices[0].message;
@@ -164,8 +170,8 @@ export class OpenaiService {
 
     const posts =
       (
-        await openai.chat.completions.parse({
-          model: 'gpt-4.1',
+        await openaiChat.chat.completions.parse({
+          model: chatModel,
           messages: [
             {
               role: 'system',
@@ -180,7 +186,7 @@ export class OpenaiService {
           ],
           response_format: zodResponseFormat(
             SeparatePostsPrompt,
-            'separatePosts'
+            'separatePosts',
           ),
         })
       ).choices[0].message.parsed?.posts || [];
@@ -197,8 +203,8 @@ export class OpenaiService {
             try {
               return (
                 (
-                  await openai.chat.completions.parse({
-                    model: 'gpt-4.1',
+                  await openaiChat.chat.completions.parse({
+                    model: chatModel,
                     messages: [
                       {
                         role: 'system',
@@ -211,7 +217,7 @@ export class OpenaiService {
                     ],
                     response_format: zodResponseFormat(
                       SeparatePostPrompt,
-                      'separatePost'
+                      'separatePost',
                     ),
                   })
                 ).choices[0].message.parsed?.post || ''
@@ -222,7 +228,7 @@ export class OpenaiService {
           }
 
           return post;
-        })
+        }),
       ),
     };
   }
@@ -233,8 +239,8 @@ export class OpenaiService {
         const message = `You are an assistant that takes a text and break it into slides, each slide should have an image prompt and voice text to be later used to generate a video and voice, image prompt should capture the essence of the slide and also have a back dark gradient on top, image prompt should not contain text in the picture, generate between 3-5 slides maximum`;
         const parse =
           (
-            await openai.chat.completions.parse({
-              model: 'gpt-4.1',
+            await openaiChat.chat.completions.parse({
+              model: chatModel,
               messages: [
                 {
                   role: 'system',
@@ -252,11 +258,11 @@ export class OpenaiService {
                       z.object({
                         imagePrompt: z.string(),
                         voiceText: z.string(),
-                      })
+                      }),
                     )
                     .describe('an array of slides'),
                 }),
-                'slides'
+                'slides',
               ),
             })
           ).choices[0].message.parsed?.slides || [];

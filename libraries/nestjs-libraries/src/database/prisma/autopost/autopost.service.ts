@@ -16,9 +16,7 @@ import { IntegrationService } from '@gitroom/nestjs-libraries/database/prisma/in
 import { makeId } from '@gitroom/nestjs-libraries/services/make.is';
 import { TemporalService } from 'nestjs-temporal-core';
 import { TypedSearchAttributes } from '@temporalio/common';
-import {
-  organizationId,
-} from '@gitroom/nestjs-libraries/temporal/temporal.search.attribute';
+import { organizationId } from '@gitroom/nestjs-libraries/temporal/temporal.search.attribute';
 const parser = new Parser();
 
 interface WorkflowChannelsState {
@@ -37,8 +35,9 @@ interface WorkflowChannelsState {
 
 const model = new ChatOpenAI({
   apiKey: process.env.OPENAI_API_KEY || 'sk-proj-',
-  model: 'gpt-4.1',
+  model: process.env.OPENAI_MODEL || 'gpt-4.1',
   temperature: 0.7,
+  configuration: { baseURL: process.env.OPENAI_BASE_URL },
 });
 
 const dalle = new DallEAPIWrapper({
@@ -64,7 +63,7 @@ export class AutopostService {
     private _autopostsRepository: AutopostRepository,
     private _temporalService: TemporalService,
     private _integrationService: IntegrationService,
-    private _postsService: PostsService
+    private _postsService: PostsService,
   ) {}
 
   async stopAll(org: string) {
@@ -82,7 +81,7 @@ export class AutopostService {
     const data = await this._autopostsRepository.createAutopost(
       orgId,
       body,
-      id
+      id,
     );
 
     await this.processCron(body.active, orgId, data.id);
@@ -94,7 +93,7 @@ export class AutopostService {
     const data = await this._autopostsRepository.changeActive(
       orgId,
       id,
-      active
+      active,
     );
     await this.processCron(active, orgId, id);
     return data;
@@ -142,7 +141,7 @@ export class AutopostService {
           }
           return all;
         },
-        { pubDate: dayjs().subtract(100, 'years') }
+        { pubDate: dayjs().subtract(100, 'years') },
       );
 
       return {
@@ -153,7 +152,7 @@ export class AutopostService {
           findLast?.['content:encoded'] ||
             findLast?.content ||
             findLast?.description ||
-            ''
+            '',
         )
           .replace(/\n/g, ' ')
           .trim(),
@@ -228,7 +227,7 @@ export class AutopostService {
         
         'description':
         {content}
-      `
+      `,
     )
       .pipe(structuredOutput)
       .invoke({
@@ -250,7 +249,7 @@ export class AutopostService {
         
         content:
         {content}
-      `
+      `,
       )
         .pipe(structuredOutput)
         .invoke({
@@ -264,46 +263,50 @@ export class AutopostService {
 
   async schedulePost(state: WorkflowChannelsState) {
     const nextTime = await this._postsService.findFreeDateTime(
-      state.integrations[0].organizationId
+      state.integrations[0].organizationId,
     );
 
-    await this._postsService.createPost(state.integrations[0].organizationId, {
-      date: nextTime + 'Z',
-      order: makeId(10),
-      shortLink: false,
-      type: 'draft',
-      tags: [],
-      posts: state.integrations.map((i) => ({
-        settings: {
-          __type: i.providerIdentifier as any,
-          title: '',
-          tags: [],
-          subreddit: [],
-        },
-        group: makeId(10),
-        integration: { id: i.id },
-        value: [
-          {
-            id: makeId(10),
-            delay: 0,
-            content:
-              state.description.replace(/\n/g, '\n\n') +
-              '\n\n' +
-              state.load.url,
-            image: !state.image
-              ? []
-              : [
-                  {
-                    id: makeId(10),
-                    name: makeId(10),
-                    path: state.image,
-                    organizationId: state.integrations[0].organizationId,
-                  },
-                ],
+    await this._postsService.createPost(
+      state.integrations[0].organizationId,
+      {
+        date: nextTime + 'Z',
+        order: makeId(10),
+        shortLink: false,
+        type: 'draft',
+        tags: [],
+        posts: state.integrations.map((i) => ({
+          settings: {
+            __type: i.providerIdentifier as any,
+            title: '',
+            tags: [],
+            subreddit: [],
           },
-        ],
-      })),
-    }, 'AUTOPOST');
+          group: makeId(10),
+          integration: { id: i.id },
+          value: [
+            {
+              id: makeId(10),
+              delay: 0,
+              content:
+                state.description.replace(/\n/g, '\n\n') +
+                '\n\n' +
+                state.load.url,
+              image: !state.image
+                ? []
+                : [
+                    {
+                      id: makeId(10),
+                      name: makeId(10),
+                      path: state.image,
+                      organizationId: state.integrations[0].organizationId,
+                    },
+                  ],
+            },
+          ],
+        })),
+      },
+      'AUTOPOST',
+    );
   }
 
   async updateUrl(state: WorkflowChannelsState) {
@@ -322,12 +325,12 @@ export class AutopostService {
     }
 
     const integrations = await this._integrationService.getIntegrationsList(
-      getPost.organizationId
+      getPost.organizationId,
     );
 
     const parseIntegrations = JSON.parse(getPost.integrations || '[]') || [];
     const neededIntegrations = integrations.filter((i) =>
-      parseIntegrations.some((ii: any) => ii.id === i.id)
+      parseIntegrations.some((ii: any) => ii.id === i.id),
     );
 
     const integrationsToSend =
@@ -353,7 +356,7 @@ export class AutopostService {
             return 'generate-picture';
           }
           return 'schedule-post';
-        }
+        },
       )
       .addEdge('generate-picture', 'schedule-post')
       .addEdge('schedule-post', 'update-url')
