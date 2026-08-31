@@ -53,7 +53,7 @@ type LinkedinPendingData = {
 };
 
 @Rules(
-  'LinkedIn can have maximum one attachment when selecting video, when choosing a carousel on LinkedIn minimum amount of attachment must be two, and only pictures, if uploading a video, LinkedIn can have only one attachment'
+  'LinkedIn can have maximum one attachment when selecting video, when choosing a carousel on LinkedIn minimum amount of attachment must be two, and only pictures, if uploading a video, LinkedIn can have only one attachment',
 )
 export class LinkedinProvider extends SocialAbstract implements SocialProvider {
   identifier = 'linkedin';
@@ -61,15 +61,7 @@ export class LinkedinProvider extends SocialAbstract implements SocialProvider {
   oneTimeToken = true;
 
   isBetweenSteps = false;
-  scopes = [
-    'openid',
-    'profile',
-    'w_member_social',
-    'r_basicprofile',
-    'rw_organization_admin',
-    'w_organization_social',
-    'r_organization_social',
-  ];
+  scopes = ['openid', 'profile', 'w_member_social'];
   override maxConcurrentJob = 2;
   refreshWait = true;
   editor = 'normal' as const;
@@ -79,7 +71,7 @@ export class LinkedinProvider extends SocialAbstract implements SocialProvider {
 
   override async checkValidity(
     posts: Array<ValidityMedia[]>,
-    vals: any
+    vals: any,
   ): Promise<string | true> {
     const [firstPost, ...restPosts] = posts ?? [];
 
@@ -104,7 +96,7 @@ export class LinkedinProvider extends SocialAbstract implements SocialProvider {
   }
 
   override handleErrors(
-    body: string
+    body: string,
   ):
     | { type: 'refresh-token' | 'bad-body' | 'retry'; value: string }
     | undefined {
@@ -115,7 +107,10 @@ export class LinkedinProvider extends SocialAbstract implements SocialProvider {
       };
     }
 
-    if (body.indexOf('resource is forbidden') > -1 || body.indexOf('Service Unavailable') > -1) {
+    if (
+      body.indexOf('resource is forbidden') > -1 ||
+      body.indexOf('Service Unavailable') > -1
+    ) {
       return {
         type: 'retry',
         value: 'Resource is forbidden',
@@ -181,8 +176,8 @@ export class LinkedinProvider extends SocialAbstract implements SocialProvider {
     const codeVerifier = makeId(30);
     const url = `https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id=${
       process.env.LINKEDIN_CLIENT_ID
-    }&prompt=none&redirect_uri=${encodeURIComponent(
-      `${process.env.FRONTEND_URL}/integrations/social/linkedin`
+    }&prompt=consent&redirect_uri=${encodeURIComponent(
+      `${process.env.FRONTEND_URL}/integrations/social/linkedin`,
     )}&state=${state}&scope=${encodeURIComponent(this.scopes.join(' '))}`;
     return {
       url,
@@ -203,7 +198,7 @@ export class LinkedinProvider extends SocialAbstract implements SocialProvider {
       'redirect_uri',
       `${process.env.FRONTEND_URL}/integrations/social/linkedin${
         params.refresh ? `?refresh=${params.refresh}` : ''
-      }`
+      }`,
     );
     body.append('client_id', process.env.LINKEDIN_CLIENT_ID!);
     body.append('client_secret', process.env.LINKEDIN_CLIENT_SECRET!);
@@ -259,7 +254,7 @@ export class LinkedinProvider extends SocialAbstract implements SocialProvider {
   async company(token: string, data: { url: string }) {
     const { url } = data;
     const getCompanyVanity = url.match(
-      /^https?:\/\/(?:www\.)?linkedin\.com\/company\/([^/]+)\/?$/
+      /^https?:\/\/(?:www\.)?linkedin\.com\/company\/([^/]+)\/?$/,
     );
     if (!getCompanyVanity || !getCompanyVanity?.length) {
       throw new Error('Invalid LinkedIn company URL');
@@ -276,7 +271,7 @@ export class LinkedinProvider extends SocialAbstract implements SocialProvider {
             'LinkedIn-Version': '202601',
             Authorization: `Bearer ${token}`,
           },
-        }
+        },
       )
     ).json();
 
@@ -296,7 +291,7 @@ export class LinkedinProvider extends SocialAbstract implements SocialProvider {
     // descriptor for videos, which are streamed chunk-by-chunk from the source
     // instead of being held in memory.
     picture: Buffer | { path: string },
-    type = 'personal' as 'company' | 'personal'
+    type = 'personal' as 'company' | 'personal',
   ): Promise<{
     id: string;
     poll?: { urn: string; endpoint: 'videos' | 'images' | 'documents' };
@@ -347,7 +342,7 @@ export class LinkedinProvider extends SocialAbstract implements SocialProvider {
                 : {}),
             },
           }),
-        }
+        },
       )
     ).json();
 
@@ -368,7 +363,7 @@ export class LinkedinProvider extends SocialAbstract implements SocialProvider {
               picture.path,
               i,
               Math.min(i + chunkSize, fileSizeBytes) - 1,
-              this.identifier
+              this.identifier,
             );
 
         const upload = await this.fetch(
@@ -385,7 +380,7 @@ export class LinkedinProvider extends SocialAbstract implements SocialProvider {
           },
           'linkedin',
           0,
-          true
+          true,
         );
 
         etags.push(upload.headers.get('etag'));
@@ -411,7 +406,7 @@ export class LinkedinProvider extends SocialAbstract implements SocialProvider {
         },
         'linkedin',
         0,
-        true
+        true,
       );
     }
 
@@ -433,7 +428,7 @@ export class LinkedinProvider extends SocialAbstract implements SocialProvider {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${accessToken}`,
           },
-        }
+        },
       );
     }
 
@@ -471,7 +466,7 @@ export class LinkedinProvider extends SocialAbstract implements SocialProvider {
   private async mediaProcessingStatus(
     accessToken: string,
     urn: string,
-    endpoint: 'videos' | 'images' | 'documents'
+    endpoint: 'videos' | 'images' | 'documents',
   ): Promise<{ status?: string; processingFailureReason?: string }> {
     // The full response body is returned (not just the two fields) so a
     // processing failure can attach LinkedIn's complete answer to the error.
@@ -486,7 +481,7 @@ export class LinkedinProvider extends SocialAbstract implements SocialProvider {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${accessToken}`,
           },
-        }
+        },
       )
     ).json();
   }
@@ -528,7 +523,7 @@ export class LinkedinProvider extends SocialAbstract implements SocialProvider {
 
   private async convertImagesToPdfCarousel(
     postDetails: PostDetails<LinkedinDto>[],
-    firstPost: PostDetails<LinkedinDto>
+    firstPost: PostDetails<LinkedinDto>,
   ): Promise<PostDetails<LinkedinDto>[]> {
     if (!firstPost.media?.length) {
       return postDetails;
@@ -542,22 +537,22 @@ export class LinkedinProvider extends SocialAbstract implements SocialProvider {
         const { width, height } = await image.metadata();
         const buffer = await image.toBuffer();
         return { buffer, width: width || 0, height: height || 0 };
-      })
+      }),
     );
 
     // Find the largest image by area to use as the PDF page size
     const largest = images.reduce((max, img) =>
-      img.width * img.height > max.width * max.height ? img : max
+      img.width * img.height > max.width * max.height ? img : max,
     );
 
     const imageBuffers = images.map((img) => img.buffer);
 
     // Create a PDF sized to the largest image; it fills the page,
     // smaller images are fitted and centered within the same dimensions
-    const pdfStream = imageToPDF(
-      imageBuffers,
-      [largest.width, largest.height]
-    ) as unknown as Readable;
+    const pdfStream = imageToPDF(imageBuffers, [
+      largest.width,
+      largest.height,
+    ]) as unknown as Readable;
     const pdfBuffer = await this.streamToBuffer(pdfStream);
 
     // Replace the first post's media with the single PDF
@@ -590,7 +585,7 @@ export class LinkedinProvider extends SocialAbstract implements SocialProvider {
     postDetails: PostDetails<LinkedinDto>[],
     accessToken: string,
     personId: string,
-    type: 'company' | 'personal'
+    type: 'company' | 'personal',
   ): Promise<{
     mediaUploads: Record<string, string[]>;
     poll: { urn: string; endpoint: 'videos' | 'images' | 'documents' }[];
@@ -627,7 +622,7 @@ export class LinkedinProvider extends SocialAbstract implements SocialProvider {
           accessToken,
           personId,
           mediaBuffer,
-          type
+          type,
         );
 
         if (!uploaded?.id) {
@@ -675,7 +670,9 @@ export class LinkedinProvider extends SocialAbstract implements SocialProvider {
     // DISABLE_IMAGE_COMPRESSION=true, where the frontend no longer shrinks
     // uploads and full-size images reach LinkedIn directly. Do not remove it on
     // the assumption that the frontend compression already caps dimensions.
-    const pipeline = sharp(await readOrFetch(mediaUrl), { animated: false }).resize({
+    const pipeline = sharp(await readOrFetch(mediaUrl), {
+      animated: false,
+    }).resize({
       width: 6000,
       height: 6000,
       fit: 'inside',
@@ -685,7 +682,11 @@ export class LinkedinProvider extends SocialAbstract implements SocialProvider {
     return await (keepFormat ? pipeline : pipeline.toFormat('jpeg')).toBuffer();
   }
 
-  private buildPostContent(isPdf: boolean, mediaIds: string[], pdfTitle?: string) {
+  private buildPostContent(
+    isPdf: boolean,
+    mediaIds: string[],
+    pdfTitle?: string,
+  ) {
     if (mediaIds.length === 0) {
       return {};
     }
@@ -716,7 +717,7 @@ export class LinkedinProvider extends SocialAbstract implements SocialProvider {
     message: string,
     mediaIds: string[],
     isPdf: boolean,
-    pdfTitle?: string
+    pdfTitle?: string,
   ) {
     const author =
       type === 'personal' ? `urn:li:person:${id}` : `urn:li:organization:${id}`;
@@ -743,7 +744,7 @@ export class LinkedinProvider extends SocialAbstract implements SocialProvider {
     mediaIds: string[],
     type: 'company' | 'personal',
     isPdf: boolean,
-    pdfTitle?: string
+    pdfTitle?: string,
   ): Promise<string> {
     const postPayload = this.createLinkedInPostPayload(
       authorId,
@@ -751,7 +752,7 @@ export class LinkedinProvider extends SocialAbstract implements SocialProvider {
       message,
       mediaIds,
       isPdf,
-      pdfTitle
+      pdfTitle,
     );
 
     const response = await this.fetch(`https://api.linkedin.com/rest/posts`, {
@@ -770,7 +771,7 @@ export class LinkedinProvider extends SocialAbstract implements SocialProvider {
         this.identifier,
         '{}',
         JSON.stringify(postPayload),
-        'Error posting to LinkedIn'
+        'Error posting to LinkedIn',
       );
     }
 
@@ -782,21 +783,21 @@ export class LinkedinProvider extends SocialAbstract implements SocialProvider {
     accessToken: string,
     post: PostDetails,
     parentPostId: string,
-    type: 'company' | 'personal'
+    type: 'company' | 'personal',
   ): Promise<string> {
     const actor =
       type === 'personal' ? `urn:li:person:${id}` : `urn:li:organization:${id}`;
 
     const response = await this.fetch(
       `https://api.linkedin.com/rest/socialActions/${encodeURIComponent(
-        parentPostId
+        parentPostId,
       )}/comments`,
       {
         method: 'POST',
         headers: {
-        'LinkedIn-Version': '202306',
-        'X-Restli-Protocol-Version': '2.0.0',
-        'Content-Type': 'application/json',
+          'LinkedIn-Version': '202306',
+          'X-Restli-Protocol-Version': '2.0.0',
+          'Content-Type': 'application/json',
           Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify({
@@ -806,7 +807,7 @@ export class LinkedinProvider extends SocialAbstract implements SocialProvider {
             text: this.fixText(post.message),
           },
         }),
-      }
+      },
     );
 
     const { object } = await response.json();
@@ -816,7 +817,7 @@ export class LinkedinProvider extends SocialAbstract implements SocialProvider {
   private createPostResponse(
     postId: string,
     originalPostId: string,
-    isMainPost: boolean = false
+    isMainPost: boolean = false,
   ): PostResponse {
     const baseUrl = isMainPost
       ? 'https://www.linkedin.com/feed/update/'
@@ -835,17 +836,19 @@ export class LinkedinProvider extends SocialAbstract implements SocialProvider {
     accessToken: string,
     postDetails: PostDetails<LinkedinDto>[],
     integration: Integration,
-    type = 'personal' as 'company' | 'personal'
+    type = 'personal' as 'company' | 'personal',
   ): Promise<PostResponse[]> {
     let processedPostDetails = postDetails;
     const [firstPost] = postDetails;
-    const isPdf = this.assetBoolean(firstPost.settings?.post_as_images_carousel);
+    const isPdf = this.assetBoolean(
+      firstPost.settings?.post_as_images_carousel,
+    );
 
     // Check if we should convert images to PDF carousel
     if (isPdf) {
       processedPostDetails = await this.convertImagesToPdfCarousel(
         postDetails,
-        firstPost
+        firstPost,
       );
     }
 
@@ -858,7 +861,7 @@ export class LinkedinProvider extends SocialAbstract implements SocialProvider {
       [processedFirstPost],
       accessToken,
       id,
-      type
+      type,
     );
 
     return [
@@ -886,7 +889,7 @@ export class LinkedinProvider extends SocialAbstract implements SocialProvider {
   override async checkPostStatus(
     accessToken: string,
     pendingData: LinkedinPendingData,
-    integration: Integration
+    integration: Integration,
   ): Promise<PendingCheckResponse> {
     // A confirmed create attempt died without reporting its result: LinkedIn
     // gives no way to ask whether that post was created, so never run the
@@ -896,7 +899,7 @@ export class LinkedinProvider extends SocialAbstract implements SocialProvider {
         this.identifier,
         '{}',
         '{}',
-        'LinkedIn may have already published this post, please check your account before posting again to avoid duplicates'
+        'LinkedIn may have already published this post, please check your account before posting again to avoid duplicates',
       );
     }
 
@@ -909,7 +912,7 @@ export class LinkedinProvider extends SocialAbstract implements SocialProvider {
         status = await this.mediaProcessingStatus(
           accessToken,
           media.urn,
-          media.endpoint
+          media.endpoint,
         );
 
         // A 200 without a status field can never reach AVAILABLE: count it
@@ -930,7 +933,7 @@ export class LinkedinProvider extends SocialAbstract implements SocialProvider {
             this.identifier,
             '{}',
             '{}',
-            'LinkedIn kept failing the media status check, nothing was published, please try again'
+            'LinkedIn kept failing the media status check, nothing was published, please try again',
           );
         }
 
@@ -950,8 +953,8 @@ export class LinkedinProvider extends SocialAbstract implements SocialProvider {
           media.endpoint === 'videos'
             ? 'video'
             : media.endpoint === 'documents'
-            ? 'document'
-            : 'image';
+              ? 'document'
+              : 'image';
         throw new BadBody(
           this.identifier,
           JSON.stringify(status),
@@ -960,7 +963,7 @@ export class LinkedinProvider extends SocialAbstract implements SocialProvider {
             status.processingFailureReason
               ? `: ${status.processingFailureReason}`
               : ''
-          }`
+          }`,
         );
       }
 
@@ -1006,7 +1009,7 @@ export class LinkedinProvider extends SocialAbstract implements SocialProvider {
   override async finalizePost(
     accessToken: string,
     pendingData: LinkedinPendingData,
-    integration: Integration
+    integration: Integration,
   ): Promise<PendingCheckResponse> {
     // Create with an arm -> confirm -> publish handshake: the create only runs
     // after checkPostStatus witnessed the intent, so a run that dies
@@ -1025,7 +1028,7 @@ export class LinkedinProvider extends SocialAbstract implements SocialProvider {
       (pendingData.mediaIds || []).filter(Boolean),
       pendingData.postType,
       pendingData.isPdf,
-      pendingData.pdfTitle
+      pendingData.pdfTitle,
     );
 
     return {
@@ -1043,14 +1046,14 @@ export class LinkedinProvider extends SocialAbstract implements SocialProvider {
     accessToken: string,
     postDetails: PostDetails<LinkedinDto>[],
     integration: Integration,
-    type = 'personal' as 'company' | 'personal'
+    type = 'personal' as 'company' | 'personal',
   ): Promise<PostResponse[]> {
     const [response] = await this.postPending(
       id,
       accessToken,
       postDetails,
       integration,
-      type
+      type,
     );
 
     let pendingData = response.pendingData;
@@ -1067,14 +1070,14 @@ export class LinkedinProvider extends SocialAbstract implements SocialProvider {
           this.identifier,
           '{}',
           '{}',
-          'LinkedIn took too long to process the media, please try again'
+          'LinkedIn took too long to process the media, please try again',
         );
       }
 
       const check = await this.checkPostStatus(
         accessToken,
         pendingData,
-        integration
+        integration,
       );
 
       if (check.status === 'pending') {
@@ -1105,7 +1108,7 @@ export class LinkedinProvider extends SocialAbstract implements SocialProvider {
     accessToken: string,
     postDetails: PostDetails<LinkedinDto>[],
     integration: Integration,
-    type = 'personal' as 'company' | 'personal'
+    type = 'personal' as 'company' | 'personal',
   ): Promise<PostResponse[]> {
     const [commentPost] = postDetails;
 
@@ -1114,7 +1117,7 @@ export class LinkedinProvider extends SocialAbstract implements SocialProvider {
       accessToken,
       commentPost,
       postId,
-      type
+      type,
     );
 
     return [this.createPostResponse(commentPostId, commentPost.id, false)];
@@ -1139,7 +1142,7 @@ export class LinkedinProvider extends SocialAbstract implements SocialProvider {
     originalIntegration: Integration,
     postId: string,
     information: any,
-    isPersonal = true
+    isPersonal = true,
   ) {
     return this.comment(
       integration.internalId,
@@ -1157,7 +1160,7 @@ export class LinkedinProvider extends SocialAbstract implements SocialProvider {
         },
       ],
       integration,
-      isPersonal ? 'personal' : 'company'
+      isPersonal ? 'personal' : 'company',
     );
   }
 
@@ -1173,7 +1176,7 @@ export class LinkedinProvider extends SocialAbstract implements SocialProvider {
     originalIntegration: Integration,
     postId: string,
     information: any,
-    isPersonal = true
+    isPersonal = true,
   ) {
     await this.fetch(`https://api.linkedin.com/rest/posts`, {
       body: JSON.stringify({
@@ -1207,7 +1210,7 @@ export class LinkedinProvider extends SocialAbstract implements SocialProvider {
     const { elements } = await (
       await fetch(
         `https://api.linkedin.com/v2/organizations?q=vanityName&vanityName=${encodeURIComponent(
-          data.query
+          data.query,
         )}&projection=(elements*(id,localizedName,logoV2(original~:playableStreams)))`,
         {
           headers: {
@@ -1216,7 +1219,7 @@ export class LinkedinProvider extends SocialAbstract implements SocialProvider {
             'LinkedIn-Version': '202601',
             Authorization: `Bearer ${token}`,
           },
-        }
+        },
       )
     ).json();
 

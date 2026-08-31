@@ -1,3 +1,23 @@
 packages:
   - apps/*
   - libraries/*
+
+onlyBuiltDependencies:
+  - bcrypt
+  - '@sentry-internal/node-cpu-profiler'
+  - '@sentry/cli'
+  - '@prisma/client'
+  - '@prisma/engines'
+  - prisma
+  - esbuild
+  - sharp
+  - '@parcel/watcher'
+  - '@swc/core'
+  - '@scarf/scarf'
+  - '@openapitools/openapi-generator-cli'
+  - bufferutil
+  - utf-8-validate
+  - protobufjs
+  - unrs-resolver
+  - core-js
+  - core-js-pure

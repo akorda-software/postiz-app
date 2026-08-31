@@ -1,0 +1,237 @@
+# Postiz (Akorda fork) on Dokploy — Docker Compose built from this repo.
+# The postiz image is built from Dockerfile.dev (same Dockerfile the official
+# ghcr.io/gitroomhq/postiz-app image is built from), so the LinkedIn and
+# favicon fixes live in the source code and no runtime patching is needed.
+# The image CMD already runs `nginx && pnpm run pm2`, and pm2-run applies the
+# Prisma schema (db push) on every start.
+# Do not use container_name. Do not attach dokploy-network.
+# Enable Isolated Deployments in Dokploy so Traefik reaches only `postiz:5000`.
+# Optional: set POSTIZ_VERSION in Dokploy env to tag builds (e.g. date or sha).
+
+services:
+  postiz:
+    image: akorda-postiz:${POSTIZ_VERSION:-latest}
+    build:
+      context: ../..
+      dockerfile: Dockerfile.dev
+      args:
+        - NEXT_PUBLIC_VERSION=${POSTIZ_VERSION:-fork}
+    restart: always
+    environment:
+      MAIN_URL: ${MAIN_URL}
+      FRONTEND_URL: ${FRONTEND_URL}
+      NEXT_PUBLIC_BACKEND_URL: ${NEXT_PUBLIC_BACKEND_URL}
+      JWT_SECRET: ${JWT_SECRET}
+      DATABASE_URL: postgresql://${POSTIZ_DB_USER}:${POSTIZ_DB_PASSWORD}@postiz-postgres:5432/${POSTIZ_DB_NAME}
+      REDIS_URL: redis://postiz-redis:6379
+      BACKEND_INTERNAL_URL: ${BACKEND_INTERNAL_URL:-http://localhost:3000}
+      TEMPORAL_ADDRESS: ${TEMPORAL_ADDRESS:-temporal:7233}
+      IS_GENERAL: ${IS_GENERAL:-true}
+      DISABLE_REGISTRATION: ${DISABLE_REGISTRATION:-false}
+      RUN_CRON: ${RUN_CRON:-true}
+      STORAGE_PROVIDER: ${STORAGE_PROVIDER:-local}
+      UPLOAD_DIRECTORY: ${UPLOAD_DIRECTORY:-/uploads}
+      NEXT_PUBLIC_UPLOAD_DIRECTORY: ${NEXT_PUBLIC_UPLOAD_DIRECTORY:-/uploads}
+      API_LIMIT: ${API_LIMIT:-30}
+      NX_ADD_PLUGINS: 'false'
+      # Optional later. Leave unset until reviewed.
+      EMAIL_PROVIDER: ${EMAIL_PROVIDER:-}
+      EMAIL_FROM_NAME: ${EMAIL_FROM_NAME:-}
+      EMAIL_FROM_ADDRESS: ${EMAIL_FROM_ADDRESS:-}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      EMAIL_HOST: ${EMAIL_HOST:-}
+      EMAIL_PORT: ${EMAIL_PORT:-}
+      EMAIL_SECURE: ${EMAIL_SECURE:-}
+      EMAIL_USER: ${EMAIL_USER:-}
+      EMAIL_PASS: ${EMAIL_PASS:-}
+      CLOUDFLARE_ACCOUNT_ID: ${CLOUDFLARE_ACCOUNT_ID:-}
+      CLOUDFLARE_ACCESS_KEY: ${CLOUDFLARE_ACCESS_KEY:-}
+      CLOUDFLARE_SECRET_ACCESS_KEY: ${CLOUDFLARE_SECRET_ACCESS_KEY:-}
+      CLOUDFLARE_BUCKETNAME: ${CLOUDFLARE_BUCKETNAME:-}
+      CLOUDFLARE_BUCKET_URL: ${CLOUDFLARE_BUCKET_URL:-}
+      CLOUDFLARE_REGION: ${CLOUDFLARE_REGION:-}
+      YOUTUBE_CLIENT_ID: ${YOUTUBE_CLIENT_ID:-}
+      YOUTUBE_CLIENT_SECRET: ${YOUTUBE_CLIENT_SECRET:-}
+      FACEBOOK_APP_ID: ${FACEBOOK_APP_ID:-}
+      FACEBOOK_APP_SECRET: ${FACEBOOK_APP_SECRET:-}
+      INSTAGRAM_APP_ID: ${INSTAGRAM_APP_ID:-}
+      INSTAGRAM_APP_SECRET: ${INSTAGRAM_APP_SECRET:-}
+      LINKEDIN_CLIENT_ID: ${LINKEDIN_CLIENT_ID:-}
+      LINKEDIN_CLIENT_SECRET: ${LINKEDIN_CLIENT_SECRET:-}
+      X_API_KEY: ${X_API_KEY:-}
+      X_API_SECRET: ${X_API_SECRET:-}
+      TIKTOK_CLIENT_ID: ${TIKTOK_CLIENT_ID:-}
+      TIKTOK_CLIENT_SECRET: ${TIKTOK_CLIENT_SECRET:-}
+    volumes:
+      - akorda-postiz-config:/config/
+      - akorda-postiz-uploads:/uploads/
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "const h=require('http');const c=p=>new Promise((ok,no)=>{const r=h.get('http://127.0.0.1:'+p+'/',x=>{x.resume();ok(x.statusCode)});r.on('error',no);r.setTimeout(4000,()=>{r.destroy();no()});});Promise.all([c(5000),c(3000)]).then(([a,b])=>process.exit(a<500&&b<500?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+    depends_on:
+      postiz-postgres:
+        condition: service_healthy
+      postiz-redis:
+        condition: service_healthy
+      temporal:
+        condition: service_healthy
+
+  postiz-postgres:
+    image: postgres:17-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTIZ_DB_USER}
+      POSTGRES_PASSWORD: ${POSTIZ_DB_PASSWORD}
+      POSTGRES_DB: ${POSTIZ_DB_NAME}
+    volumes:
+      - akorda-postiz-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  postiz-redis:
+    image: redis:7.2
+    restart: always
+    volumes:
+      - akorda-postiz-redis-data:/data
+    healthcheck:
+      test: ['CMD-SHELL', 'redis-cli ping | grep -q PONG']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  temporal-elasticsearch:
+    image: elasticsearch:7.17.27
+    restart: always
+    environment:
+      - cluster.routing.allocation.disk.threshold_enabled=true
+      - cluster.routing.allocation.disk.watermark.low=512mb
+      - cluster.routing.allocation.disk.watermark.high=256mb
+      - cluster.routing.allocation.disk.watermark.flood_stage=128mb
+      - discovery.type=single-node
+      - ES_JAVA_OPTS=-Xms256m -Xmx256m
+      - xpack.security.enabled=false
+    volumes:
+      - akorda-postiz-temporal-elasticsearch-data:/usr/share/elasticsearch/data
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'curl -fsS "http://localhost:9200/_cluster/health?wait_for_status=yellow&timeout=5s" || exit 1',
+        ]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+
+  temporal-postgresql:
+    image: postgres:16
+    restart: always
+    environment:
+      POSTGRES_USER: ${TEMPORAL_DB_USER}
+      POSTGRES_PASSWORD: ${TEMPORAL_DB_PASSWORD}
+    volumes:
+      - akorda-postiz-temporal-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  temporal:
+    image: temporalio/auto-setup:1.28.1
+    restart: always
+    depends_on:
+      temporal-postgresql:
+        condition: service_healthy
+      temporal-elasticsearch:
+        condition: service_healthy
+    environment:
+      - DB=postgres12
+      - DB_PORT=5432
+      - POSTGRES_USER=${TEMPORAL_DB_USER}
+      - POSTGRES_PWD=${TEMPORAL_DB_PASSWORD}
+      - POSTGRES_SEEDS=temporal-postgresql
+      - DYNAMIC_CONFIG_FILE_PATH=config/dynamicconfig/development-sql.yaml
+      - ENABLE_ES=true
+      - ES_SEEDS=temporal-elasticsearch
+      - ES_VERSION=v7
+      - TEMPORAL_NAMESPACE=default
+    configs:
+      - source: temporal-dynamicconfig
+        target: /etc/temporal/config/dynamicconfig/development-sql.yaml
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'temporal',
+          'operator',
+          'cluster',
+          'health',
+          '--address',
+          'temporal:7233',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  temporal-admin-tools:
+    image: temporalio/admin-tools:1.28.1-tctl-1.18.4-cli-1.4.1
+    restart: on-failure
+    environment:
+      - TEMPORAL_ADDRESS=temporal:7233
+      - TEMPORAL_CLI_ADDRESS=temporal:7233
+    stdin_open: true
+    tty: true
+    depends_on:
+      temporal:
+        condition: service_healthy
+
+  temporal-ui:
+    image: temporalio/ui:2.34.0
+    restart: always
+    environment:
+      - TEMPORAL_ADDRESS=temporal:7233
+      - TEMPORAL_CORS_ORIGINS=http://127.0.0.1:3000
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:8080/healthz']
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    depends_on:
+      temporal:
+        condition: service_healthy
+
+volumes:
+  akorda-postiz-postgres-data:
+  akorda-postiz-redis-data:
+  akorda-postiz-config:
+  akorda-postiz-uploads:
+  akorda-postiz-temporal-postgres-data:
+  akorda-postiz-temporal-elasticsearch-data:
+
+configs:
+  temporal-dynamicconfig:
+    content: |
+      limit.maxIDLength:
+        - value: 255
+          constraints: {}
+      system.forceSearchAttributesCacheRefreshOnRead:
+        - value: true
+          constraints: {}

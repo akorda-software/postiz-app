@@ -14,7 +14,7 @@ import { timer } from '@gitroom/helpers/utils/timer';
 import { Rules } from '@gitroom/nestjs-libraries/chat/rules.description.decorator';
 
 @Rules(
-  'LinkedIn can have maximum one attachment when selecting video, when choosing a carousel on LinkedIn minimum amount of attachment must be two, and only pictures, if uploading a video, LinkedIn can have only one attachment'
+  'LinkedIn can have maximum one attachment when selecting video, when choosing a carousel on LinkedIn minimum amount of attachment must be two, and only pictures, if uploading a video, LinkedIn can have only one attachment',
 )
 export class LinkedinPageProvider
   extends LinkedinProvider
@@ -38,7 +38,7 @@ export class LinkedinPageProvider
   override editor = 'normal' as const;
 
   override async refreshToken(
-    refresh_token: string
+    refresh_token: string,
   ): Promise<AuthTokenDetails> {
     const {
       access_token: accessToken,
@@ -101,7 +101,7 @@ export class LinkedinPageProvider
       originalIntegration,
       postId,
       information,
-      false
+      false,
     );
   }
 
@@ -109,24 +109,24 @@ export class LinkedinPageProvider
     integration: Integration,
     originalIntegration: Integration,
     postId: string,
-    information: any
+    information: any,
   ) {
     return super.repostPostUsers(
       integration,
       originalIntegration,
       postId,
       information,
-      false
+      false,
     );
   }
 
   override async generateAuthUrl() {
     const state = makeId(6);
     const codeVerifier = makeId(30);
-    const url = `https://www.linkedin.com/oauth/v2/authorization?response_type=code&prompt=none&client_id=${
+    const url = `https://www.linkedin.com/oauth/v2/authorization?response_type=code&prompt=consent&client_id=${
       process.env.LINKEDIN_CLIENT_ID
     }&redirect_uri=${encodeURIComponent(
-      `${process.env.FRONTEND_URL}/integrations/social/linkedin-page`
+      `${process.env.FRONTEND_URL}/integrations/social/linkedin-page`,
     )}&state=${state}&scope=${encodeURIComponent(this.scopes.join(' '))}`;
     return {
       url,
@@ -145,7 +145,7 @@ export class LinkedinPageProvider
             'X-Restli-Protocol-Version': '2.0.0',
             'LinkedIn-Version': '202601',
           },
-        }
+        },
       )
     ).json();
 
@@ -153,7 +153,7 @@ export class LinkedinPageProvider
       .filter(
         (e: any) =>
           e['organizationalTarget~'] &&
-          ['ADMINISTRATOR', 'CONTENT_ADMINISTRATOR'].includes(e.role)
+          ['ADMINISTRATOR', 'CONTENT_ADMINISTRATOR'].includes(e.role),
       )
       .map((e: any) => ({
         id: e.organizationalTarget.split(':').pop(),
@@ -169,7 +169,7 @@ export class LinkedinPageProvider
   async reConnect(
     id: string,
     requiredId: string,
-    accessToken: string
+    accessToken: string,
   ): Promise<Omit<AuthTokenDetails, 'refreshToken' | 'expiresIn'>> {
     const information = await this.fetchPageInformation(accessToken, {
       page: requiredId,
@@ -193,7 +193,7 @@ export class LinkedinPageProvider
           headers: {
             Authorization: `Bearer ${accessToken}`,
           },
-        }
+        },
       )
     ).json();
 
@@ -217,7 +217,7 @@ export class LinkedinPageProvider
     body.append('code', params.code);
     body.append(
       'redirect_uri',
-      `${process.env.FRONTEND_URL}/integrations/social/linkedin-page`
+      `${process.env.FRONTEND_URL}/integrations/social/linkedin-page`,
     );
     body.append('client_id', process.env.LINKEDIN_CLIENT_ID!);
     body.append('client_secret', process.env.LINKEDIN_CLIENT_SECRET!);
@@ -274,7 +274,7 @@ export class LinkedinPageProvider
     id: string,
     accessToken: string,
     postDetails: PostDetails[],
-    integration: Integration
+    integration: Integration,
   ): Promise<PostResponse[]> {
     return super.post(id, accessToken, postDetails, integration, 'company');
   }
@@ -285,14 +285,14 @@ export class LinkedinPageProvider
     id: string,
     accessToken: string,
     postDetails: PostDetails[],
-    integration: Integration
+    integration: Integration,
   ): Promise<PostResponse[]> {
     return super.postPending(
       id,
       accessToken,
       postDetails,
       integration,
-      'company'
+      'company',
     );
   }
 
@@ -302,7 +302,7 @@ export class LinkedinPageProvider
     lastCommentId: string | undefined,
     accessToken: string,
     postDetails: PostDetails[],
-    integration: Integration
+    integration: Integration,
   ): Promise<PostResponse[]> {
     return super.comment(
       id,
@@ -311,14 +311,14 @@ export class LinkedinPageProvider
       accessToken,
       postDetails,
       integration,
-      'company'
+      'company',
     );
   }
 
   async analytics(
     id: string,
     accessToken: string,
-    date: number
+    date: number,
   ): Promise<AnalyticsData[]> {
     const endDate = dayjs().unix() * 1000;
     const startDate = dayjs().subtract(date, 'days').unix() * 1000;
@@ -326,7 +326,7 @@ export class LinkedinPageProvider
     const { elements }: { elements: Root[]; paging: any } = await (
       await fetch(
         `https://api.linkedin.com/v2/organizationPageStatistics?q=organization&organization=${encodeURIComponent(
-          `urn:li:organization:${id}`
+          `urn:li:organization:${id}`,
         )}&timeIntervals=(timeRange:(start:${startDate},end:${endDate}),timeGranularityType:DAY)`,
         {
           headers: {
@@ -334,14 +334,14 @@ export class LinkedinPageProvider
             'Linkedin-Version': '202601',
             'X-Restli-Protocol-Version': '2.0.0',
           },
-        }
+        },
       )
     ).json();
 
     const { elements: elements2 }: { elements: Root[]; paging: any } = await (
       await fetch(
         `https://api.linkedin.com/v2/organizationalEntityFollowerStatistics?q=organizationalEntity&organizationalEntity=${encodeURIComponent(
-          `urn:li:organization:${id}`
+          `urn:li:organization:${id}`,
         )}&timeIntervals=(timeRange:(start:${startDate},end:${endDate}),timeGranularityType:DAY)`,
         {
           headers: {
@@ -349,14 +349,14 @@ export class LinkedinPageProvider
             'Linkedin-Version': '202601',
             'X-Restli-Protocol-Version': '2.0.0',
           },
-        }
+        },
       )
     ).json();
 
     const { elements: elements3 }: { elements: Root[]; paging: any } = await (
       await fetch(
         `https://api.linkedin.com/v2/organizationalEntityShareStatistics?q=organizationalEntity&organizationalEntity=${encodeURIComponent(
-          `urn:li:organization:${id}`
+          `urn:li:organization:${id}`,
         )}&timeIntervals=(timeRange:(start:${startDate},end:${endDate}),timeGranularityType:DAY)`,
         {
           headers: {
@@ -364,7 +364,7 @@ export class LinkedinPageProvider
             'Linkedin-Version': '202601',
             'X-Restli-Protocol-Version': '2.0.0',
           },
-        }
+        },
       )
     ).json();
 
@@ -428,7 +428,7 @@ export class LinkedinPageProvider
         Comments: [] as any[],
         'Organic Followers': [] as any[],
         'Paid Followers': [] as any[],
-      }
+      },
     );
 
     return Object.keys(analytics).map((key) => ({
@@ -444,14 +444,14 @@ export class LinkedinPageProvider
     integrationId: string,
     accessToken: string,
     postId: string,
-    date: number
+    date: number,
   ): Promise<AnalyticsData[]> {
     const endDate = dayjs().unix() * 1000;
     const startDate = dayjs().subtract(date, 'days').unix() * 1000;
 
     // Fetch share statistics for the specific post
     const shareStatsUrl = `https://api.linkedin.com/v2/organizationalEntityShareStatistics?q=organizationalEntity&organizationalEntity=${encodeURIComponent(
-      `urn:li:organization:${integrationId}`
+      `urn:li:organization:${integrationId}`,
     )}&shares=List(${encodeURIComponent(postId)})&timeIntervals=(timeRange:(start:${startDate},end:${endDate}),timeGranularityType:DAY)`;
 
     const { elements: shareElements }: { elements: PostShareStatElement[] } =
@@ -469,7 +469,7 @@ export class LinkedinPageProvider
     let socialActions: SocialActionsResponse | null = null;
     try {
       const socialActionsUrl = `https://api.linkedin.com/v2/socialActions/${encodeURIComponent(
-        postId
+        postId,
       )}`;
       socialActions = await (
         await fetch(socialActionsUrl, {
@@ -535,7 +535,7 @@ export class LinkedinPageProvider
         Comments: [] as { total: number; date: string }[],
         Shares: [] as { total: number; date: string }[],
         Engagement: [] as { total: number; date: string }[],
-      }
+      },
     );
 
     // If no time series data but we have social actions, create a single data point
@@ -586,7 +586,7 @@ export class LinkedinPageProvider
   async autoRepostPost(
     integration: Integration,
     id: string,
-    fields: { likesAmount: string }
+    fields: { likesAmount: string },
   ) {
     const {
       likesSummary: { totalLikes },
@@ -601,7 +601,7 @@ export class LinkedinPageProvider
             'LinkedIn-Version': '202601',
             Authorization: `Bearer ${integration.token}`,
           },
-        }
+        },
       )
     ).json();
 
@@ -664,7 +664,7 @@ export class LinkedinPageProvider
   async autoPlugPost(
     integration: Integration,
     id: string,
-    fields: { likesAmount: string; post: string }
+    fields: { likesAmount: string; post: string },
   ) {
     const {
       likesSummary: { totalLikes },
@@ -679,7 +679,7 @@ export class LinkedinPageProvider
             'LinkedIn-Version': '202601',
             Authorization: `Bearer ${integration.token}`,
           },
-        }
+        },
       )
     ).json();
 
@@ -687,7 +687,7 @@ export class LinkedinPageProvider
       await timer(2000);
       await this.fetch(
         `https://api.linkedin.com/v2/socialActions/${decodeURIComponent(
-          id
+          id,
         )}/comments`,
         {
           method: 'POST',
@@ -702,7 +702,7 @@ export class LinkedinPageProvider
               text: this.fixText(fields.post),
             },
           }),
-        }
+        },
       );
       return true;
     }
