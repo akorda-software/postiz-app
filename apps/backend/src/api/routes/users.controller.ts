@@ -49,13 +49,13 @@ export class UsersController {
     private _authService: AuthService,
     private _orgService: OrganizationService,
     private _userService: UsersService,
-    private _trackService: TrackService
+    private _trackService: TrackService,
   ) {}
 
   @Get('/chatbase-token')
   async getChatbaseToken(
     @GetUserFromRequest() user: User,
-    @GetOrgFromRequest() organization: Organization
+    @GetOrgFromRequest() organization: Organization,
   ) {
     if (!process.env.CHATBASE_TOKEN) {
       throw new HttpException('Chatbase SSO is not configured', 400);
@@ -77,7 +77,7 @@ export class UsersController {
           : {}),
       },
       process.env.CHATBASE_TOKEN,
-      { expiresIn: '1h' }
+      { expiresIn: '1h' },
     );
 
     return { token };
@@ -86,7 +86,7 @@ export class UsersController {
   @Get('/agent-media-sso')
   async getAgentMediaSsoUrl(
     @GetUserFromRequest() user: User,
-    @GetOrgFromRequest() organization: Organization
+    @GetOrgFromRequest() organization: Organization,
   ) {
     if (!process.env.AGENT_MEDIA_SSO_KEY) {
       throw new HttpException('Agent Media SSO is not configured', 400);
@@ -94,7 +94,7 @@ export class UsersController {
 
     const token = sign(
       { id: organization.id, displayName: organization.name },
-      process.env.AGENT_MEDIA_SSO_KEY
+      process.env.AGENT_MEDIA_SSO_KEY,
     );
 
     return { url: `https://agent-media.ai/sso/${token}` };
@@ -104,7 +104,7 @@ export class UsersController {
   async getSelf(
     @GetUserFromRequest() user: User,
     @GetOrgFromRequest() organization: Organization,
-    @Req() req: Request
+    @Req() req: Request,
   ) {
     if (!organization) {
       throw new HttpForbiddenException();
@@ -152,7 +152,7 @@ export class UsersController {
   @Get('/impersonate')
   async getImpersonate(
     @GetUserFromRequest() user: User,
-    @Query('name') name: string
+    @Query('name') name: string,
   ) {
     if (!user.isSuperAdmin) {
       throw new HttpException('Unauthorized', 400);
@@ -165,7 +165,7 @@ export class UsersController {
   async setImpersonate(
     @GetUserFromRequest() user: User,
     @Body('id') id: string,
-    @Res({ passthrough: true }) response: Response
+    @Res({ passthrough: true }) response: Response,
   ) {
     if (!user.isSuperAdmin) {
       throw new HttpException('Unauthorized', 400);
@@ -192,7 +192,7 @@ export class UsersController {
   async switchUser(
     @GetUserFromRequest() user: User,
     @Body('id') id: string,
-    @Req() req: Request
+    @Req() req: Request,
   ) {
     if (!user.isSuperAdmin) {
       throw new HttpException('Unauthorized', 400);
@@ -215,7 +215,7 @@ export class UsersController {
     const { kept, switched } = await this._userService.switchUser(
       user.id,
       id,
-      adminId
+      adminId,
     );
 
     await this._paymentService.syncCustomerEmailsAfterSwitch([kept, switched]);
@@ -236,7 +236,7 @@ export class UsersController {
   @Post('/personal')
   async changePersonal(
     @GetUserFromRequest() user: User,
-    @Body() body: UserDetailDto
+    @Body() body: UserDetailDto,
   ) {
     return this._userService.changePersonal(user.id, body);
   }
@@ -249,7 +249,7 @@ export class UsersController {
   @Post('/email-notifications')
   async updateEmailNotifications(
     @GetUserFromRequest() user: User,
-    @Body() body: EmailNotificationsDto
+    @Body() body: EmailNotificationsDto,
   ) {
     return this._userService.updateEmailNotifications(user.id, body);
   }
@@ -264,7 +264,7 @@ export class UsersController {
   @CheckPolicies([AuthorizationActions.Create, Sections.ADMIN])
   async getSubscription(@GetOrgFromRequest() organization: Organization) {
     const subscription = await this._paymentService.getSubscription(
-      organization.id
+      organization.id,
     );
 
     return subscription ? { subscription } : { subscription: undefined };
@@ -280,7 +280,7 @@ export class UsersController {
   async joinOrg(
     @GetUserFromRequest() user: User,
     @Body('org') org: string,
-    @Res({ passthrough: true }) response: Response
+    @Res({ passthrough: true }) response: Response,
   ) {
     const getOrgFromCookie = this._authService.getOrgFromCookie(org);
 
@@ -292,7 +292,7 @@ export class UsersController {
       user.id,
       getOrgFromCookie.id,
       getOrgFromCookie.orgId,
-      getOrgFromCookie.role
+      getOrgFromCookie.role,
     );
 
     response.status(200).json({
@@ -303,7 +303,7 @@ export class UsersController {
   @Get('/organizations')
   async getOrgs(@GetUserFromRequest() user: User) {
     return (await this._orgService.getOrgsByUserId(user.id)).filter(
-      (f) => !f.users[0].disabled
+      (f) => !f.users[0].disabled,
     );
   }
 
@@ -312,7 +312,7 @@ export class UsersController {
     @GetUserFromRequest() user: User,
     @Req() req: Request,
     @Body() body: OrganizationNameDto,
-    @Res({ passthrough: true }) response: Response
+    @Res({ passthrough: true }) response: Response,
   ) {
     this.assertNotImpersonating(req);
     const org = await this._orgService.createOrgForUser(user.id, body.name);
@@ -325,7 +325,7 @@ export class UsersController {
     @GetUserFromRequest() user: User,
     @Req() req: Request,
     @Param('id') id: string,
-    @Body() body: OrganizationNameDto
+    @Body() body: OrganizationNameDto,
   ) {
     this.assertNotImpersonating(req);
     return this._orgService.updateOrganizationName(user.id, id, body.name);
@@ -337,27 +337,25 @@ export class UsersController {
     @GetOrgFromRequest() organization: Organization,
     @Req() req: Request,
     @Param('id') id: string,
-    @Res({ passthrough: true }) response: Response
+    @Res({ passthrough: true }) response: Response,
   ) {
     this.assertNotImpersonating(req);
     const orgToDelete = await this._orgService.getOrgToDelete(user.id, id);
 
     await this._orgService.deleteOwnedOrganization(orgToDelete.id, user.id);
 
-    if (process.env.STRIPE_PUBLISHABLE_KEY && orgToDelete.paymentId) {
-      try {
-        await this._stripeService.cancelAllSubscriptions(orgToDelete.id);
-      } catch (err) {
-        console.log(err);
-        throw new HttpException(
-          'Your organization was deleted but we could not cancel your subscription, please contact support',
-          400
-        );
-      }
+    try {
+      await this._paymentService.cancelAllSubscriptions(orgToDelete.id);
+    } catch (err) {
+      console.log(err);
+      throw new HttpException(
+        'Your organization was deleted but we could not cancel your subscription, please contact support',
+        400,
+      );
     }
 
     const remaining = (await this._orgService.getOrgsByUserId(user.id)).filter(
-      (item) => !item.users[0].disabled
+      (item) => !item.users[0].disabled,
     );
     const nextOrg =
       remaining.find((item) => item.id === organization.id) || remaining[0];
@@ -371,7 +369,7 @@ export class UsersController {
   @Post('/change-org')
   changeOrg(
     @Body('id') id: string,
-    @Res({ passthrough: true }) response: Response
+    @Res({ passthrough: true }) response: Response,
   ) {
     this.setShowOrgCookie(response, id);
     response.status(200).send();
@@ -400,7 +398,7 @@ export class UsersController {
     if (impersonate) {
       throw new HttpException(
         'Organizations cannot be changed while impersonating',
-        400
+        400,
       );
     }
   }
@@ -409,20 +407,20 @@ export class UsersController {
   async deleteAccount(
     @GetUserFromRequest() user: User,
     @Req() req: Request,
-    @Res({ passthrough: true }) response: Response
+    @Res({ passthrough: true }) response: Response,
   ) {
     const impersonate = req.cookies.impersonate || req.headers.impersonate;
     if (impersonate) {
       throw new HttpException(
         'Account cannot be deleted while impersonating',
-        400
+        400,
       );
     }
 
     // Cancel billing before scrubbing the account — once the account is
     // deleted there is no way to retry a failed cancellation
     const ownedOrgs = await this._userService.getOrgsToDeleteForAccount(
-      user.id
+      user.id,
     );
 
     for (const org of ownedOrgs) {
@@ -432,7 +430,7 @@ export class UsersController {
         console.log(err);
         throw new HttpException(
           'Could not cancel your subscription, please try again or contact support',
-          400
+          400,
         );
       }
     }
@@ -495,7 +493,7 @@ export class UsersController {
     @RealIP() ip: string,
     @UserAgent() userAgent: string,
     @Body()
-    body: { tt: TrackEnum; fbclid: string; additional: Record<string, any> }
+    body: { tt: TrackEnum; fbclid: string; additional: Record<string, any> },
   ) {
     const uniqueId = req?.cookies?.track || makeId(10);
     const fbclid = req?.cookies?.fbclid || body.fbclid;
@@ -506,7 +504,7 @@ export class UsersController {
       body.tt,
       body.additional,
       fbclid,
-      user
+      user,
     );
     if (!req.cookies.track) {
       res.cookie('track', uniqueId, {
