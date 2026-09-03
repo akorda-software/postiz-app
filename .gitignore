@@ -5,6 +5,7 @@ dist
 tmp
 /out-tsc
 .env
+.env.dokploy
 .apple
 # dependencies
 node_modules
