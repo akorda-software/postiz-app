@@ -17,6 +17,11 @@ services:
       args:
         - NEXT_PUBLIC_VERSION=${POSTIZ_VERSION:-fork}
     restart: always
+    # autoheal (see service below) restarts this container when the
+    # healthcheck reports unhealthy. Scoped to postiz only via this label.
+    labels:
+      - autoheal=true
+      - autoheal.stop.timeout=30
     environment:
       MAIN_URL: ${MAIN_URL}
       FRONTEND_URL: ${FRONTEND_URL}
@@ -84,7 +89,9 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 120s
+      # Cold boot (prisma db push + parallel apps + Mastra init on a small VPS)
+      # takes ~8 minutes; unhealthy too early removes Traefik routes (404).
+      start_period: 480s
     depends_on:
       postiz-postgres:
         condition: service_healthy
@@ -92,6 +99,21 @@ services:
         condition: service_healthy
       temporal:
         condition: service_healthy
+
+  # Restarts postiz when its healthcheck reports unhealthy (e.g. backend hung
+  # pre-log after a cold boot). Only watches containers labeled autoheal=true.
+  # START_PERIOD keeps it quiet during the initial boot storm; the postiz
+  # start_period (480s) already prevents false unhealthy during slow boots.
+  # Needs /var/run/docker.sock (own VPS, acceptable).
+  autoheal:
+    image: willfarrell/autoheal:latest
+    restart: always
+    network_mode: none
+    environment:
+      AUTOHEAL_INTERVAL: 30
+      AUTOHEAL_START_PERIOD: 600
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
 
   postiz-postgres:
     image: postgres:17-alpine

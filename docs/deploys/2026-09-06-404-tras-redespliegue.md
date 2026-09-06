@@ -86,6 +86,24 @@ data: { token: '', refreshToken: null } })`) — no ejecutar en prod sin OK.
   ajustar los comandos. Y re-salvar el dominio si el router no aparece.
 - Este incidente "ya había pasado una vez": a partir de ahora, todo incidente
   con fix se documenta aquí con fecha antes de cerrarlo.
+
+## 8. Segundo 404 tras redeploy con rebuild (11:24–11:45, mismo día)
+
+- Misma firma (`:5000` → 307, `:3000` rechaza) pero mecanismo DISTINTO:
+  un solo backend (restarts 0, sin gemelos), 15+ min sin una sola línea de log.
+- Forense sobre el proceso colgado (PID 260 = node real; el PID de pm2 es el
+  wrapper pnpm): `State: S (sleeping)`, `futex_wait_queue`, 11 hilos,
+  `utime=0`, stdio sobre sockets, **ningún socket TCP** → no espera a
+  postgres/redis/temporal (todos healthy); deadlock local pre-log, causa raíz
+  aún desconocida. El orchestrator sí bootó (7,5 min, logueando todo).
+- Patrón: el boot frío tarda ~8 min; el `start_period: 120s` lo desahuciaba a
+  los ~4,5 min → Traefik 404. Subido a 480s (ver §6).
+- Fix permanente aplicado: `process.exit(1)` si el `listen` falla en
+  `apps/backend/src/main.ts` (fin de los zombies sordos).
+- Regla: tras cada redeploy, 10 min sin tocar nada (ni `pm2 restart`).
 - REGLA: dentro del contenedor, NUNCA `pm2 restart <app>` (deja huérfanos que
   compiten por el puerto y por el DDL de Mastra). Recuperación = `docker restart`
-  del contenedor entero y comprobar un solo `main.js` por app.
+  del contenedor entero.
+- Salvaguarda: sidecar `autoheal` en el compose (solo vigila `postiz` por label;
+  `START_PERIOD=600s` para no actuar durante el boot). Un cuelgue real se
+  reinicia solo en ~11 min.
