@@ -68,6 +68,17 @@ export class PinterestProvider
 
   dto = PinterestSettingsDto;
 
+  // Trial apps cannot write to production: with PINTEREST_SANDBOX=true every
+  // API call - OAuth token exchange included - targets api-sandbox instead.
+  // The authorize URL stays on www.pinterest.com and sandbox tokens are not
+  // interchangeable with production ones (official Sandbox docs). Unset (or
+  // anything but 'true') keeps production, so existing users are unaffected.
+  private getApiBaseUrl(): string {
+    return this.assetBoolean(process.env.PINTEREST_SANDBOX || '')
+      ? 'https://api-sandbox.pinterest.com'
+      : 'https://api.pinterest.com';
+  }
+
   override async checkValidity([firstItem]: Array<ValidityMedia[]>): Promise<
     string | true
   > {
@@ -154,7 +165,7 @@ export class PinterestProvider
 
   async refreshToken(refreshToken: string): Promise<AuthTokenDetails> {
     const { access_token, expires_in } = await (
-      await fetch('https://api.pinterest.com/v5/oauth/token', {
+      await fetch(`${this.getApiBaseUrl()}/v5/oauth/token`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
@@ -172,7 +183,7 @@ export class PinterestProvider
     ).json();
 
     const { id, profile_image, username } = await (
-      await fetch('https://api.pinterest.com/v5/user_account', {
+      await fetch(`${this.getApiBaseUrl()}/v5/user_account`, {
         method: 'GET',
         headers: {
           Authorization: `Bearer ${access_token}`,
@@ -212,7 +223,7 @@ export class PinterestProvider
     refresh: string;
   }) {
     const { access_token, refresh_token, expires_in, scope } = await (
-      await fetch('https://api.pinterest.com/v5/oauth/token', {
+      await fetch(`${this.getApiBaseUrl()}/v5/oauth/token`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
@@ -231,7 +242,7 @@ export class PinterestProvider
     this.checkScopes(this.scopes, scope);
 
     const { id, profile_image, username } = await (
-      await fetch('https://api.pinterest.com/v5/user_account', {
+      await fetch(`${this.getApiBaseUrl()}/v5/user_account`, {
         method: 'GET',
         headers: {
           Authorization: `Bearer ${access_token}`,
@@ -253,7 +264,7 @@ export class PinterestProvider
   @Tool({ description: 'List of boards', dataSchema: [] })
   async boards(accessToken: string) {
     const { items } = await (
-      await fetch('https://api.pinterest.com/v5/boards?page_size=250', {
+      await fetch(`${this.getApiBaseUrl()}/v5/boards?page_size=250`, {
         method: 'GET',
         headers: {
           Authorization: `Bearer ${accessToken}`,
@@ -287,7 +298,7 @@ export class PinterestProvider
     // irreversible - a failure leaves only an orphaned media upload.
     if (findMp4) {
       const { upload_url, media_id, upload_parameters } = await (
-        await this.fetch('https://api.pinterest.com/v5/media', {
+        await this.fetch(`${this.getApiBaseUrl()}/v5/media`, {
           method: 'POST',
           body: JSON.stringify({
             media_type: 'video',
@@ -374,7 +385,7 @@ export class PinterestProvider
     try {
       mediafile = await (
         await this.fetch(
-          'https://api.pinterest.com/v5/media/' + pendingData.mediaId,
+          `${this.getApiBaseUrl()}/v5/media/${pendingData.mediaId}`,
           {
             method: 'GET',
             headers: {
@@ -431,7 +442,7 @@ export class PinterestProvider
     const mapImages = (pendingData.imagePaths || []).map((path) => ({ path }));
 
     const { id: pId } = await (
-      await this.fetch('https://api.pinterest.com/v5/pins', {
+      await this.fetch(`${this.getApiBaseUrl()}/v5/pins`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${accessToken}`,
@@ -555,7 +566,7 @@ export class PinterestProvider
       all: { daily_metrics },
     } = await (
       await fetch(
-        `https://api.pinterest.com/v5/user_account/analytics?start_date=${since}&end_date=${until}`,
+        `${this.getApiBaseUrl()}/v5/user_account/analytics?start_date=${since}&end_date=${until}`,
         {
           method: 'GET',
           headers: {
@@ -620,7 +631,7 @@ export class PinterestProvider
     try {
       // Fetch pin analytics from Pinterest API
       const response = await fetch(
-        `https://api.pinterest.com/v5/pins/${postId}/analytics?start_date=${since}&end_date=${today}&metric_types=IMPRESSION,PIN_CLICK,OUTBOUND_CLICK,SAVE`,
+        `${this.getApiBaseUrl()}/v5/pins/${postId}/analytics?start_date=${since}&end_date=${today}&metric_types=IMPRESSION,PIN_CLICK,OUTBOUND_CLICK,SAVE`,
         {
           method: 'GET',
           headers: {
