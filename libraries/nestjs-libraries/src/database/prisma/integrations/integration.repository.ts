@@ -603,6 +603,11 @@ export class IntegrationRepository {
       },
       data: {
         deletedAt: new Date(),
+        // Channel rows are only soft-deleted, so the OAuth secrets must be
+        // cleared here explicitly - otherwise the tokens would stay readable
+        // in the database after the user removed the channel.
+        token: '',
+        refreshToken: null,
       },
     });
   }

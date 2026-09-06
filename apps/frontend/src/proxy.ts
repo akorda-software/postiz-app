@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { getCookieUrlFromDomain } from '@gitroom/helpers/subdomain/subdomain.management';
 import { internalFetch } from '@gitroom/helpers/utils/internal.fetch';
+import { LEGAL_PUBLIC_PATHS } from './components/legal/legal.paths';
 import acceptLanguage from 'accept-language';
 import {
   cookieName,
@@ -47,7 +48,11 @@ export async function proxy(request: NextRequest) {
     nextUrl.pathname.startsWith('/uploads/') ||
     nextUrl.pathname.startsWith('/p/') ||
     nextUrl.pathname.startsWith('/provider/') ||
-    nextUrl.pathname.startsWith('/icons/')
+    nextUrl.pathname.startsWith('/icons/') ||
+    LEGAL_PUBLIC_PATHS.some(
+      (path) =>
+        nextUrl.pathname === path || nextUrl.pathname.startsWith(path + '/')
+    )
   ) {
     return topResponse;
   }

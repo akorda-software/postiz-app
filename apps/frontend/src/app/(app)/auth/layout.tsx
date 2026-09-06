@@ -21,6 +21,15 @@ export default async function AuthLayout({
         <div className="w-full max-w-[440px] mx-auto justify-center gap-[20px] h-full flex flex-col text-white">
           <LogoTextComponent />
           <div className="flex">{children}</div>
+          <div className="flex items-center justify-center gap-[12px] text-[12px] text-white/60">
+            <a href="/terms-of-service" className="underline hover:font-bold">
+              {t('terms_of_service', 'Terms of Service')}
+            </a>
+            <span>·</span>
+            <a href="/privacy-policy" className="underline hover:font-bold">
+              {t('privacy_policy', 'Privacy Policy')}
+            </a>
+          </div>
         </div>
       </div>
       <div className="text-[36px] flex-1 pt-[88px] hidden lg:flex flex-col items-center">
