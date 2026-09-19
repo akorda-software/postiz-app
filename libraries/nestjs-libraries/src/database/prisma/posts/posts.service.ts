@@ -146,6 +146,10 @@ export class PostsService {
     return this._postRepository.getPostById(postId, orgId);
   }
 
+  async getPostTimeline(postId: string, orgId: string) {
+    return this._postRepository.getPostTimeline(postId, orgId);
+  }
+
   async updateReleaseId(orgId: string, postId: string, releaseId: string) {
     return this._postRepository.updateReleaseId(postId, orgId, releaseId);
   }
@@ -349,9 +353,21 @@ export class PostsService {
         (
           await Promise.all(
             (imagesList || []).map(async (p: any) => {
-              if (!p.path && p.id) {
+              if (!p.id) {
+                return p;
+              }
+
+              if (!p.path) {
                 imageUpdateNeeded = true;
                 return this._mediaService.getMediaById(p.id);
+              }
+
+              // the normalizer may have replaced the file after the post was
+              // composed; a record still processing publishes the original
+              const fresh = await this._mediaService.getMediaById(p.id);
+              if (fresh?.status === 'ready' && fresh.path !== p.path) {
+                imageUpdateNeeded = true;
+                return { ...p, name: fresh.name, path: fresh.path };
               }
 
               return p;
@@ -688,8 +704,8 @@ export class PostsService {
     return this._postRepository.countPostsFromDay(orgId, date);
   }
 
-  getPostByForWebhookId(id: string) {
-    return this._postRepository.getPostByForWebhookId(id);
+  getPostByForWebhookId(id: string, integrationId: string) {
+    return this._postRepository.getPostByForWebhookId(id, integrationId);
   }
 
   async startWorkflow(
