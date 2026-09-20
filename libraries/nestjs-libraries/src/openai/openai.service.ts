@@ -31,7 +31,7 @@ const ClipsPrompt = z.object({
       content: z
         .string()
         .describe('Social media post to publish the clip with, no hashtags'),
-    })
+    }),
   ),
 });
 
@@ -43,12 +43,12 @@ export class OpenaiService {
     title: string,
     language: string,
     segments: { start: number; end: number; text: string }[],
-    maxClips: number
+    maxClips: number,
   ) {
     const { clips } = (
-      await openai.chat.completions.parse(
+      await openaiChat.chat.completions.parse(
         {
-          model: 'gpt-4.1',
+          model: chatModel,
           messages: [
             {
               role: 'system',
@@ -65,7 +65,7 @@ Clips must not overlap. Write the title and the post in this language, whatever 
                   (p, index) =>
                     `${index} [${p.start.toFixed(1)} - ${p.end.toFixed(1)}] ${
                       p.text
-                    }`
+                    }`,
                 )
                 .join('\n')}`,
             },
@@ -74,7 +74,7 @@ Clips must not overlap. Write the title and the post in this language, whatever 
         },
         // shorter than the activity: an attempt that was given up on must not
         // still be running, and storing clips, when its retry gets there
-        { timeout: 8 * 60 * 1000, maxRetries: 0 }
+        { timeout: 8 * 60 * 1000, maxRetries: 0 },
       )
     ).choices[0].message.parsed || { clips: [] };
 
